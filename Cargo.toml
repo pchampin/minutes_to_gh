@@ -1,0 +1,16 @@
+[package]
+name = "minutes_to_gh"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.86"
+chrono = "0.4.38"
+clap = { version = "4.5.16", features = ["derive", "env"] }
+env_logger = "0.11.5"
+log = "0.4.22"
+octocrab = "0.39.0"
+regex = "1.10.6"
+reqwest = "0.12.7"
+scraper = "0.20.0"
+tokio = { version = "1.39.3", features = ["macros", "rt", "rt-multi-thread"] }
