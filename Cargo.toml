@@ -1,13 +1,18 @@
 [package]
 name = "minutes_to_gh"
-version = "0.1.0"
+description = "an IRC bot to link github issues and PRs to the minutes of the meetings where they were discussed"
+version = "0.2.0"
+homepage = "https://github.com/pchampin/minutes_to_gh"
 edition = "2021"
 
 [dependencies]
 anyhow = "1.0.86"
+async-stream = "0.3.5"
 chrono = "0.4.38"
 clap = { version = "4.5.16", features = ["derive", "env"] }
 env_logger = "0.11.5"
+futures = "0.3.30"
+irc = { version = "1.0.0", features = ["tls-rust"] }
 log = "0.4.22"
 octocrab = "0.39.0"
 regex = "1.10.6"

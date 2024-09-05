@@ -2,6 +2,7 @@ use std::sync::OnceLock;
 
 use regex::Regex;
 
+#[derive(Clone, Copy, Debug)]
 pub struct Issue<'a> {
     pub url: &'a str,
     pub owner: &'a str,
