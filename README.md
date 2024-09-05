@@ -1,7 +1,7 @@
-Minutes to github
+Minutes to GitHub
 =================
 
-[Yet another](#alternatives-with-their-cons) tool to link github issues to W3C minutes where they were discussed.
+[Yet another](#alternatives-with-their-cons) tool to link GitHub issues to W3C minutes where they were discussed.
 
 It is available in two flavours:
 
@@ -12,7 +12,7 @@ How it works
 ------------
 
 This program fetches the minutes of a meeting (an HTML file),
-find all mention to github issues or pull requests,
+find all mention to GitHub issues or pull requests,
 and post a comment to each of them,
 containing a link to the (sub)section where this issue/pull request was mentioned.
 
@@ -21,6 +21,9 @@ so it should be safe to run it several times.
 
 Quick start
 -----------
+
+Before you start, you need to create a [GitHub token](https://github.com/settings/tokens)
+that will enable the program to post comments on GitHub on your behalf.
 
 ### Run the IRC bot with Docker
 
@@ -52,7 +55,7 @@ cargo run -- --token $GITHUB_TOKEN irc-bot --username $YOUR_USERNAME
 
 ### Manual mode
 
-For creating github comments for older minutes, it is possible to use this program in "manual" mode.
+For creating GitHub comments for older minutes, it is possible to use this program in "manual" mode.
 The basic options are as follow:
 
 ```bash
@@ -114,4 +117,4 @@ Alternatives (with their cons)
 
 * https://github.com/dbaron/wgmeeting-github-ircbot/
 
-  - pastes raw IRC log in github issues; no link to the HTML minutes
+  - pastes raw IRC log in GitHub issues; no link to the HTML minutes
