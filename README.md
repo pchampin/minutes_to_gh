@@ -31,7 +31,7 @@ that will enable the program to post comments on GitHub on your behalf.
 # prepare the Docker image (required only once)
 docker build -t minutes_to_gh .
 # run the IRC bot
-docker run --rm -it minutes_to_gh --token $GITHUB_TOKEN irc-bot --username $YOUR_USERNAME
+docker run --rm --init -it minutes_to_gh --token $GITHUB_TOKEN irc-bot --username $YOUR_USERNAME
 ```
 
 This will run an IRC bot named `m2gbot` that will connect to [`irc.w3.org`](https://irc.w3.org).
