@@ -20,10 +20,10 @@ pub struct CmdArgs {
 /// Subcommands
 #[derive(Subcommand, Clone, Debug)]
 pub enum SubCmdArgs {
-    /// Comment github issues from the command line
-    Manual(EngineArgs),
     /// Run an IRC bot that can comment github issues
     IrcBot(IrcBotArgs),
+    /// Comment github issues from the command line
+    Manual(EngineArgs),
 }
 
 /// See [`SubCmdArgs::Manual`]
@@ -53,21 +53,27 @@ pub struct EngineArgs {
 /// See [`SubCmdArgs::IrcBot`]
 #[derive(Args, Clone, Debug)]
 pub struct IrcBotArgs {
+    /// Nickname used by the bot
     #[arg(short, long, default_value = "m2gbot", env = "M2G_NICKNAME")]
     pub nickname: String,
 
+    /// IRC server
     #[arg(short, long, default_value = "irc.w3.org", env = "M2G_SERVER")]
     pub server: String,
 
+    /// Port of the IRC server
     #[arg(short, long, default_value_t = 6679, env = "M2G_PORT")]
     pub port: u16,
 
+    /// Username of the owner of the bot
     #[arg(short, long, env = "M2G_USERNAME")]
     pub username: Option<String>,
 
+    /// Password of the owner of the bot (if needed)
     #[arg(short = 'P', long, env = "M2G_PASSWORD")]
     pub password: Option<String>,
 
+    /// Channels on which the bot should connect automatically (comma separated)
     #[arg(short, long, env = "M2G_CHANNELS")]
     pub channels: Vec<String>,
 }

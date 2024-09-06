@@ -19,7 +19,7 @@ async fn main() -> Result<()> {
         .init();
 
     match args.subcommand {
-        args::SubCmdArgs::Manual(args) => manual::command(token, args).await,
         args::SubCmdArgs::IrcBot(args) => ircbot::command(token, args).await,
+        args::SubCmdArgs::Manual(args) => manual::command(token, args).await,
     }
 }
