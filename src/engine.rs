@@ -20,7 +20,7 @@ pub struct Engine {
     dom: Html,
     github: Octocrab,
     min_date: DateTime<Utc>,
-    message: String,
+    message_template: String,
     dry_run: bool,
 }
 
@@ -53,12 +53,10 @@ impl Engine {
 
         let github = Octocrab::builder().personal_token(token).build()?;
         let min_date = NaiveDateTime::from(args.date.pred_opt().unwrap()).and_utc();
-        let message = format!(
-            "This was discussed during the {} meeting on {:04}-{:02}-{:02}:",
+        let message_template = format!(
+            "This was discussed during the [{} meeting on {}](%URL%).",
             args.channel,
-            args.date.year(),
-            args.date.month(),
-            args.date.day(),
+            args.date.format("%d %B %Y"),
         );
 
         Ok(Self {
@@ -66,7 +64,7 @@ impl Engine {
             dom,
             github,
             min_date,
-            message,
+            message_template,
             dry_run: args.dry_run,
         })
     }
@@ -85,13 +83,15 @@ impl Engine {
                     yield Outcome::skipped(issue, comment.html_url);
                     continue;
                 }
+                let message = self.message_template.replace("%URL%", &link);
+                log::debug!("Comment message: {message}");
                 if self.dry_run {
                     log::info!("Comment posted: (not really, running in dry mode)");
                     yield Outcome::faked(issue);
                     continue;
                 }
                 let comment = issues
-                    .create_comment(issue.id, format!("{}\n{}", &self.message, &link))
+                    .create_comment(issue.id, message)
                     .await?;
                 log::info!("Comment posted: {}", comment.html_url);
                 yield Outcome::created(issue, comment.html_url);
