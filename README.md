@@ -14,7 +14,8 @@ How it works
 This program fetches the minutes of a meeting (an HTML file),
 find all mention to GitHub issues or pull requests,
 and post a comment to each of them,
-containing a link to the (sub)section where this issue/pull request was mentioned.
+containing a link to the (sub)section where this issue/pull request was mentioned,
+as well as a copy of that section (converted to markdown).
 
 Note that the program will not add a comment if it finds one already containing the same link,
 so it should be safe to run it several times.
