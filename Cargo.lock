@@ -695,6 +695,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
 
 [[package]]
+name = "html2md-rs"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b71be6f34f63b0f5a8ebfecd249389770ebc8df482581a5ae3c700c47f100d8"
+
+[[package]]
 name = "html5ever"
 version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1071,8 +1077,10 @@ dependencies = [
  "async-stream",
  "chrono",
  "clap",
+ "ego-tree",
  "env_logger",
  "futures",
+ "html2md-rs",
  "irc",
  "log",
  "octocrab",
