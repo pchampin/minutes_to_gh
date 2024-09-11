@@ -35,13 +35,18 @@ pub struct Engine {
 
 impl Engine {
     pub async fn new(token: String, args: EngineArgs) -> Result<Self> {
+        let channel_name = if args.channel.starts_with('#') {
+            &args.channel[1..]
+        } else {
+            &args.channel
+        };
         let url = args.url.unwrap_or_else(|| {
             format!(
                 "https://www.w3.org/{}/{:02}/{:02}-{}-minutes.html",
                 args.date.year(),
                 args.date.month(),
                 args.date.day(),
-                args.channel,
+                channel_name,
             )
         });
         log::debug!("Minutes URL: {url:?}");
