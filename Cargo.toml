@@ -14,10 +14,10 @@ ego-tree = "0.6.3"
 env_logger = "0.11.5"
 futures = "0.3.30"
 html2md-rs = "0.9.1"
-irc = { version = "1.0.0", features = ["tls-rust"] }
+irc = { version = "1.0.0", features = ["channel-lists", "ctcp", "tls-rust"], default-features = false }
 log = "0.4.22"
 octocrab = "0.39.0"
 regex = "1.10.6"
-reqwest = "0.12.7"
+reqwest = { version = "0.12.7", features = ["charset", "http2", "rustls-tls-native-roots"], default-features = false }
 scraper = "0.20.0"
 tokio = { version = "1.39.3", features = ["macros", "rt", "rt-multi-thread"] }

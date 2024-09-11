@@ -16,7 +16,7 @@ ENTRYPOINT ["./target/release/minutes_to_gh"]
 # Image for running the project (much smaller than the build one)
 FROM debian:bookworm-slim
 RUN apt update
-RUN apt -y install libssl3 openssl ca-certificates
+RUN apt -y install ca-certificates
 COPY --from=build /app/target/release/minutes_to_gh .
 ENTRYPOINT ["./minutes_to_gh"]
 
