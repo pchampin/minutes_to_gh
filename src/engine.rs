@@ -1,11 +1,12 @@
 use std::sync::LazyLock;
-use std::{iter::once, sync::OnceLock};
+use std::{iter::once, sync::OnceLock, time::Duration};
 
 use anyhow::{Context, Result};
 use async_stream::try_stream;
 use chrono::{DateTime, Datelike, NaiveDateTime, Utc};
 use ego_tree::NodeRef;
 use futures::Stream;
+use governor::{DefaultDirectRateLimiter, Quota, RateLimiter};
 use html2md_rs::to_md::safe_from_html_to_md;
 use octocrab::{issues::IssueHandler, models::issues::Comment, Octocrab};
 use regex::Regex;
@@ -30,6 +31,7 @@ pub struct Engine {
     github: Octocrab,
     min_date: DateTime<Utc>,
     message_template: String,
+    governor: DefaultDirectRateLimiter,
     dry_run: bool,
 }
 
@@ -73,12 +75,17 @@ impl Engine {
             args.date.format("%d %B %Y"),
         );
 
+        let governor = RateLimiter::direct(
+            Quota::with_period(Duration::from_secs_f64(args.rate_limit.into())).unwrap(),
+        );
+
         Ok(Self {
             url,
             dom,
             github,
             min_date,
             message_template,
+            governor,
             dry_run: args.dry_run,
         })
     }
@@ -87,6 +94,7 @@ impl Engine {
     pub fn run(&self) -> impl Stream<Item = Result<Outcome>> + '_ {
         try_stream! {
             for (issue, link, fragment) in issues_with_link(&self.dom, &self.url) {
+                self.governor.until_ready().await;
                 log::debug!("{} referenced in {link}", issue.url);
                 let issues = self.github.issues(issue.owner, issue.repo);
                 if let Some(comment) = comment_to_link(&link, &issues, issue.id, self.min_date).await? {

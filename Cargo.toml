@@ -1,7 +1,7 @@
 [package]
 name = "minutes_to_gh"
 description = "an IRC bot to link github issues and PRs to the minutes of the meetings where they were discussed"
-version = "0.4.1"
+version = "0.4.2"
 homepage = "https://github.com/pchampin/minutes_to_gh"
 edition = "2021"
 
@@ -13,6 +13,7 @@ clap = { version = "4.5.16", features = ["derive", "env"] }
 ego-tree = "0.6.3"
 env_logger = "0.11.5"
 futures = "0.3.30"
+governor = "0.6.3"
 html2md-rs = "0.9.1"
 irc = { version = "1.0.0", features = ["channel-lists", "ctcp", "tls-rust"], default-features = false }
 log = "0.4.22"

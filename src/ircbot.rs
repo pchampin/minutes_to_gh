@@ -6,7 +6,7 @@ use regex::{Regex, RegexBuilder};
 use std::sync::LazyLock;
 
 use crate::{
-    args::{EngineArgs, IrcBotArgs},
+    args::{EngineArgs, FinitePositiveF64, IrcBotArgs},
     engine::Engine,
     outcome::{
         Outcome,
@@ -122,6 +122,7 @@ impl Bot {
             EngineArgs {
                 channel: message.response_target().unwrap().to_string(),
                 date: chrono::offset::Local::now().date_naive(),
+                rate_limit: FinitePositiveF64::new_unchecked(1.0),
                 dry_run: false,
                 url: None,
                 file: None,
@@ -138,9 +139,10 @@ impl Bot {
             message,
             EngineArgs {
                 channel: message.response_target().unwrap().to_string(),
-                // channel: "did".into(),
                 date: chrono::offset::Local::now().date_naive(),
+                // channel: "did".into(),
                 // date: "2024-08-22".parse().unwrap(),
+                rate_limit: FinitePositiveF64::new_unchecked(1.0),
                 dry_run: true,
                 url: None,
                 file: None,

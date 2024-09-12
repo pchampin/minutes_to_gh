@@ -1,3 +1,6 @@
+use std::str::FromStr;
+
+use anyhow::{Error, Result};
 use chrono::NaiveDate;
 use clap::{Args, Parser, Subcommand};
 
@@ -36,6 +39,10 @@ pub struct EngineArgs {
     /// Date of the minutes, formatted as YYYY-MM-DD
     #[arg(short, long, env = "M2G_DATE", default_value_t = today())]
     pub date: NaiveDate,
+
+    /// Minimum delay (in sec) between processing two issues (throttling GitHub API calls)
+    #[arg(short, long, env = "M2G_RATE_LIMIT", default_value_t = FinitePositiveF64(0.2), value_parser = FinitePositiveF64::from_str)]
+    pub rate_limit: FinitePositiveF64,
 
     /// Do not actually perform the operations on GitHub
     #[arg(short = 'n', long)]
@@ -98,4 +105,46 @@ impl From<IrcBotArgs> for irc::client::prelude::Config {
 
 fn today() -> NaiveDate {
     chrono::offset::Local::now().date_naive()
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct FinitePositiveF64(f64);
+
+impl FinitePositiveF64 {
+    pub fn new_unchecked(value: f64) -> Self {
+        debug_assert!(Self::try_from(value).is_ok());
+        Self(value)
+    }
+}
+
+impl TryFrom<f64> for FinitePositiveF64 {
+    type Error = Error;
+
+    fn try_from(value: f64) -> Result<Self> {
+        if value.is_finite() && value > 0.0 {
+            Ok(Self(value))
+        } else {
+            Err(Error::msg(format!("{value} is not finite and positive")))
+        }
+    }
+}
+
+impl FromStr for FinitePositiveF64 {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        s.parse::<f64>()?.try_into()
+    }
+}
+
+impl std::fmt::Display for FinitePositiveF64 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl From<FinitePositiveF64> for f64 {
+    fn from(wrapper: FinitePositiveF64) -> Self {
+        wrapper.0
+    }
 }
