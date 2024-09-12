@@ -15,7 +15,7 @@ This program fetches the minutes of a meeting (an HTML file),
 find all mention to GitHub issues or pull requests,
 and post a comment to each of them,
 containing a link to the (sub)section where this issue/pull request was mentioned,
-as well as a copy of that section (converted to markdown).
+as well as, optionally, a copy of that section (converted to markdown).
 
 Note that the program will not add a comment if it finds one already containing the same link,
 so it should be safe to run it several times.
@@ -87,24 +87,25 @@ The IRC bot supports the following commands (always preceded by `"<nickname>, "`
 <table>
   <tr>
     <td>
-      <code>[please] link [github] issues [to minutes]</code>
+      <code>[please] link [github] issues [to minutes] [with transcript]</code>
     <td>
-       <a href="#how-it-works">Process</a> the minutes of the current day for the current channel
+       <a href="#how-it-works">Process</a> the minutes of the current day for the current channel,
+       copying the relevant part of the minutes **if** `with transcript` was used.
   <tr>
     <td>
       <code>debug</code>
     <td>
-      Pretend to <a href="#how-it-works">process</a> the minutes as above, but do not actually post the comments
+      Pretend to <a href="#how-it-works">process</a> the minutes as above, but do not actually post the comments.
   <tr>
     <td>
       <code>bye</code>, <code>[please] leave</code>
     <td>
-      Leave the channel
+      Leave the channel.
   <tr>
     <td>
       <code>[please] help</code>
     <td>
-      Display a help message with the version of the program and a link to its homepage and documentation
+      Display a help message with the version of the program and a link to its homepage and documentation.
 </table>
 
 

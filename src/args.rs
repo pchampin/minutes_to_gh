@@ -40,6 +40,10 @@ pub struct EngineArgs {
     #[arg(short, long, env = "M2G_DATE", default_value_t = today())]
     pub date: NaiveDate,
 
+    /// Include transcript in GitHub comment
+    #[arg(short, long, env = "M2G_TRANSCRIPT", default_value_t = false)]
+    pub transcript: bool,
+
     /// Minimum delay (in sec) between processing two issues (throttling GitHub API calls)
     #[arg(short, long, env = "M2G_RATE_LIMIT", default_value_t = FinitePositiveF64(0.2), value_parser = FinitePositiveF64::from_str)]
     pub rate_limit: FinitePositiveF64,

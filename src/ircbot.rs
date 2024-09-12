@@ -63,7 +63,9 @@ impl Bot {
                         let res = match cmd {
                             BotCommand::Bye => self.bye(channel).await,
                             BotCommand::Help => self.help(&message).await,
-                            BotCommand::LinkIssues => self.link_issues(&message).await,
+                            BotCommand::LinkIssues(transcript) => {
+                                self.link_issues(transcript, &message).await
+                            }
                             BotCommand::Debug => self.debug(&message).await,
                             BotCommand::Unrecognized => self.unrecognized(&message, cmd_str).await,
                         };
@@ -132,7 +134,7 @@ impl Bot {
         .await
     }
 
-    async fn link_issues(&self, message: &Message) -> Result<()> {
+    async fn link_issues(&self, transcript: bool, message: &Message) -> Result<()> {
         debug_assert!(matches!(message.command, Command::PRIVMSG(..)));
         log::info!("Linking issues on {}", message.response_target().unwrap());
 
@@ -141,6 +143,7 @@ impl Bot {
             EngineArgs {
                 channel: message.response_target().unwrap().to_string(),
                 date: chrono::offset::Local::now().date_naive(),
+                transcript,
                 rate_limit: FinitePositiveF64::new_unchecked(1.0),
                 dry_run: false,
                 url: None,
@@ -161,6 +164,7 @@ impl Bot {
                 date: chrono::offset::Local::now().date_naive(),
                 // channel: "did".into(),
                 // date: "2024-08-22".parse().unwrap(),
+                transcript: true,
                 rate_limit: FinitePositiveF64::new_unchecked(1.0),
                 dry_run: true,
                 url: None,
@@ -228,11 +232,11 @@ impl Bot {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum BotCommand {
     Bye,
     Help,
-    LinkIssues,
+    LinkIssues(bool),
     Debug,
     Unrecognized,
 }
@@ -252,12 +256,12 @@ impl From<&'_ str> for BotCommand {
     fn from(value: &str) -> Self {
         use BotCommand::*;
 
-        lazy_re! { LINK_ISSUES = "^(please )?(back)?link (github )?issues( to minutes)?$" }
+        lazy_re! { LINK_ISSUES = "^(please )?(back)?link (github )?issues( to minutes)?(?<transcript> with transcript)?$" }
         lazy_re! { LINK_HELP = "^(please )?help$" }
         lazy_re! { LINK_BYE = "^bye|out|(please )?(excuse us|leave|part)$" }
 
-        if LINK_ISSUES.is_match(value) {
-            LinkIssues
+        if let Some(captures) = LINK_ISSUES.captures(value) {
+            LinkIssues(captures.name("transcript").is_some())
         } else if LINK_HELP.is_match(value) {
             Help
         } else if LINK_BYE.is_match(value) {
@@ -279,5 +283,59 @@ fn my_response_target<'a>(target: &'a String, msg: &'a Message) -> Option<&'a St
         Some(name)
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("bye" => BotCommand::Bye)]
+    #[test_case("excuse us" => BotCommand::Bye)]
+    #[test_case("leave" => BotCommand::Bye)]
+    #[test_case("out" => BotCommand::Bye)]
+    #[test_case("part" => BotCommand::Bye)]
+    #[test_case("please excuse us" => BotCommand::Bye)]
+    #[test_case("please leave" => BotCommand::Bye)]
+    #[test_case("please part" => BotCommand::Bye)]
+    #[test_case("help" => BotCommand::Help)]
+    #[test_case("please help" => BotCommand::Help)]
+    #[test_case("debug" => BotCommand::Debug)]
+    #[test_case("backlink github issues" => BotCommand::LinkIssues(false))]
+    #[test_case("backlink github issues to minutes" => BotCommand::LinkIssues(false))]
+    #[test_case("backlink github issues to minutes with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("backlink github issues with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("backlink issues" => BotCommand::LinkIssues(false))]
+    #[test_case("backlink issues to minutes" => BotCommand::LinkIssues(false))]
+    #[test_case("backlink issues to minutes with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("backlink issues with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("link github issues" => BotCommand::LinkIssues(false))]
+    #[test_case("link github issues to minutes" => BotCommand::LinkIssues(false))]
+    #[test_case("link github issues to minutes with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("link github issues with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("link issues" => BotCommand::LinkIssues(false))]
+    #[test_case("link issues to minutes" => BotCommand::LinkIssues(false))]
+    #[test_case("link issues to minutes with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("link issues with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("please backlink github issues" => BotCommand::LinkIssues(false))]
+    #[test_case("please backlink github issues to minutes" => BotCommand::LinkIssues(false))]
+    #[test_case("please backlink github issues to minutes with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("please backlink github issues with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("please backlink issues" => BotCommand::LinkIssues(false))]
+    #[test_case("please backlink issues to minutes" => BotCommand::LinkIssues(false))]
+    #[test_case("please backlink issues to minutes with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("please backlink issues with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("please link github issues" => BotCommand::LinkIssues(false))]
+    #[test_case("please link github issues to minutes" => BotCommand::LinkIssues(false))]
+    #[test_case("please link github issues to minutes with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("please link github issues with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("please link issues" => BotCommand::LinkIssues(false))]
+    #[test_case("please link issues to minutes" => BotCommand::LinkIssues(false))]
+    #[test_case("please link issues to minutes with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("please link issues with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("anything else" => BotCommand::Unrecognized)]
+    fn bot_command(txt: &str) -> BotCommand {
+        BotCommand::from(txt)
     }
 }

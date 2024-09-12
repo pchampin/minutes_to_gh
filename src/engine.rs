@@ -28,6 +28,7 @@ pub struct Engine {
     github: Octocrab,
     min_date: DateTime<Utc>,
     message_template: String,
+    transcript: bool,
     governor: DefaultDirectRateLimiter,
     dry_run: bool,
 }
@@ -67,7 +68,7 @@ impl Engine {
         let github = Octocrab::builder().personal_token(token).build()?;
         let min_date = NaiveDateTime::from(args.date.pred_opt().unwrap()).and_utc();
         let message_template = format!(
-            "This was discussed during the [{} meeting on {}](%URL%).\n\n<details><summary><i>View the transcript</i></summary>\n\n%FRAGMENT%\n----\n</details>",
+            "This was discussed during the [{} meeting on {}](%URL%).",
             args.channel,
             args.date.format("%d %B %Y"),
         );
@@ -82,6 +83,7 @@ impl Engine {
             github,
             min_date,
             message_template,
+            transcript: args.transcript,
             governor,
             dry_run: args.dry_run,
         })
@@ -90,7 +92,7 @@ impl Engine {
     // Run the engine and yield a number of outcomes.
     pub fn run(&self) -> impl Stream<Item = Result<Outcome>> + '_ {
         try_stream! {
-            for (issue, link, fragment) in issues_with_link(&self.dom, &self.url) {
+            for (issue, link, fragment) in issues_with_link(&self.dom, &self.url, self.transcript) {
                 self.governor.until_ready().await;
                 log::debug!("{} referenced in {link}", issue.url);
                 let issues = self.github.issues(issue.owner, issue.repo);
@@ -102,9 +104,15 @@ impl Engine {
                     yield Outcome::skipped(issue, comment.html_url);
                     continue;
                 }
-                let message = self.message_template
-                    .replace("%URL%", &link)
-                    .replace("%FRAGMENT%", &fragment);
+                let mut message = self.message_template
+                    .replace("%URL%", &link);
+                if self.transcript {
+                    let transcript = format!(
+                        "\n\n<details><summary><i>View the transcript</i></summary>\n\n{}\n----\n</details>",
+                        fragment,
+                    );
+                    message += &transcript;
+                }
                 log::trace!("Comment message: {message}");
                 if self.dry_run {
                     log::info!("Comment posted: (not really, running in dry mode)");
@@ -122,16 +130,21 @@ impl Engine {
 }
 
 /// Iter over all github issues cited in dom,
-/// together with the most appropriate link to refer to where this issue was discussed.
+/// together with the most appropriate link to refer to where this issue was discussed,
+/// and optionally (see below) a markdown version of the part of the minutes where they are discussed.
+///
+/// The markdown fragment is only extracted if `transcript` is true,
+/// otherwise it will be an empty string.
 fn issues_with_link<'a>(
     dom: &'a Html,
     url: &'a str,
+    transcript: bool,
 ) -> impl Iterator<Item = (Issue<'a>, String, String)> {
     static SEL: LazyLock<Selector> = LazyLock::new(|| Selector::parse("a").unwrap());
     dom.select(&SEL)
         .map(|a| (a, a.attr("href").and_then(Issue::try_from_url)))
         .filter_map(transpose_2nd)
-        .map(|(a, issue)| (issue, find_closest_hn_id(a)))
+        .map(move |(a, issue)| (issue, find_closest_hn_id(a, transcript)))
         .filter_map(transpose_2nd)
         .map(move |(issue, fragment)| {
             (issue, format!("{}#{}", &url, fragment.id), fragment.content)
@@ -173,12 +186,21 @@ fn transpose_2nd<T, U>(pair: (T, Option<U>)) -> Option<(T, U)> {
     }
 }
 
-/// Find the header (h1, h2...) with an id which is closest before the given element.
-fn find_closest_hn_id(e: ElementRef) -> Option<DocFragment> {
+/// Find the header (h1, h2...) with an id which is closest before the given element,
+/// and return the corresponding DocFragment.
+///
+/// Note that if content is false, the content field of the returned DocFragment will be an empty string.
+fn find_closest_hn_id(e: ElementRef, content: bool) -> Option<DocFragment> {
     element_ancestors(e)
         .flat_map(element_prev_siblings)
         .filter_map(try_as_fragment_boundary)
-        .map(|(id, e)| extract_fragment(id, e))
+        .map(|(id, e)| {
+            if content {
+                extract_fragment(id, e)
+            } else {
+                DocFragment::dummy(id)
+            }
+        })
         .next()
 }
 
@@ -234,8 +256,17 @@ fn element_prev_siblings(e: ElementRef) -> impl Iterator<Item = ElementRef> {
     once(e).chain(e.prev_siblings().filter_map(ElementRef::wrap))
 }
 
-/// Combines an ID from a DOM tree with the HTML fragment "accessible" from this ID.
+/// Combines an ID from a DOM tree with the markdown version of the fragment "accessible" from this ID.
 struct DocFragment<'a> {
     id: &'a str,
     content: String,
+}
+
+impl<'a> DocFragment<'a> {
+    fn dummy(id: &'a str) -> Self {
+        Self {
+            id,
+            content: "".into(),
+        }
+    }
 }
