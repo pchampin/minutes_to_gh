@@ -1,5 +1,4 @@
-use std::sync::LazyLock;
-use std::{iter::once, sync::OnceLock, time::Duration};
+use std::{iter::once, sync::LazyLock, time::Duration};
 
 use anyhow::{Context, Result};
 use async_stream::try_stream;
@@ -19,9 +18,7 @@ use scraper::{
 };
 
 use crate::args::EngineArgs;
-use crate::doc_fragment::DocFragment;
-use crate::issue::Issue;
-use crate::outcome::Outcome;
+use crate::outcome::{Issue, Outcome};
 
 /// The engine of this create, locating mentions to GitHub issues/PRs in minutes,
 /// and commenting the corresponding issue/PR with a link to the relevant part of the minutes.
@@ -130,9 +127,8 @@ fn issues_with_link<'a>(
     dom: &'a Html,
     url: &'a str,
 ) -> impl Iterator<Item = (Issue<'a>, String, String)> {
-    static SEL: OnceLock<Selector> = OnceLock::new();
-    let sel = SEL.get_or_init(|| Selector::parse("a").unwrap());
-    dom.select(sel)
+    static SEL: LazyLock<Selector> = LazyLock::new(|| Selector::parse("a").unwrap());
+    dom.select(&SEL)
         .map(|a| (a, a.attr("href").and_then(Issue::try_from_url)))
         .filter_map(transpose_2nd)
         .map(|(a, issue)| (issue, find_closest_hn_id(a)))
@@ -236,4 +232,10 @@ fn element_ancestors(e: ElementRef) -> impl Iterator<Item = ElementRef> {
 /// e is yielded as its first sibling.
 fn element_prev_siblings(e: ElementRef) -> impl Iterator<Item = ElementRef> {
     once(e).chain(e.prev_siblings().filter_map(ElementRef::wrap))
+}
+
+/// Combines an ID from a DOM tree with the HTML fragment "accessible" from this ID.
+struct DocFragment<'a> {
+    id: &'a str,
+    content: String,
 }

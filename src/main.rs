@@ -2,10 +2,8 @@ use anyhow::Result;
 use clap::Parser;
 
 mod args;
-mod doc_fragment;
 mod engine;
 mod ircbot;
-mod issue;
 mod manual;
 mod outcome;
 

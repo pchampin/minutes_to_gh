@@ -1,4 +1,6 @@
-use crate::issue::Issue;
+use std::sync::LazyLock;
+
+use regex::Regex;
 
 #[derive(Clone, Debug)]
 pub struct Outcome {
@@ -34,5 +36,34 @@ impl Outcome {
             kind: OutcomeKind::Skipped(comment.to_string()),
             issue: issue.url.to_string(),
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Issue<'a> {
+    pub url: &'a str,
+    pub owner: &'a str,
+    pub repo: &'a str,
+    pub id: u64,
+}
+
+impl<'a> Issue<'a> {
+    pub fn try_from_url(url: &'a str) -> Option<Self> {
+        static RE_ISSUE: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"//github.com/([^/]+)/([^/]+)/(issues|pull|#)/([0-9]+)$").unwrap()
+        });
+        let groups = RE_ISSUE.captures(url)?;
+        Some(Issue {
+            url,
+            owner: groups.get(1).unwrap().as_str(),
+            repo: groups.get(2).unwrap().as_str(),
+            id: groups.get(4).unwrap().as_str().parse().unwrap(),
+        })
+    }
+}
+
+impl<'a> std::fmt::Display for Issue<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}/{}#{}", self.owner, self.repo, self.id)
     }
 }
