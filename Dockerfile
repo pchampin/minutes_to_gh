@@ -4,7 +4,7 @@ FROM rust:bookworm AS build
 RUN USER=root cargo new --bin app
 WORKDIR /app
 COPY Cargo.toml Cargo.lock .
-# 2. build only depencencies to cache them
+# 2. build only dependencies to cache them
 RUN cargo build --release
 # 3. build the source code of the project
 RUN rm -r ./src/* ./target/release/deps/minutes_to_gh*
