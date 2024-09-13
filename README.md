@@ -15,7 +15,7 @@ This program fetches the minutes of a meeting (an HTML file),
 find all mention to GitHub issues or pull requests,
 and post a comment to each of them,
 containing a link to the (sub)section where this issue/pull request was mentioned,
-as well as, optionally, a copy of that section (converted to markdown).
+as well as, optionally, a copy of that section (converted to markdown, [⚠ CURRENTLY BUGGY](https://github.com/pchampin/minutes_to_gh/issues/3)).
 
 Note that the program will not add a comment if it finds one already containing the same link,
 so it should be safe to run it several times.
@@ -89,8 +89,9 @@ The IRC bot supports the following commands (always preceded by `"<nickname>, "`
     <td>
       <code>[please] link [github] issues [to minutes] [with transcript]</code>
     <td>
-       <a href="#how-it-works">Process</a> the minutes of the current day for the current channel,
-       copying the relevant part of the minutes **if** `with transcript` was used.
+       <a href="#how-it-works">Process</a> the minutes of the current day for the current channel.
+       If <code>with transcript</code> is used, the GitHub comments will include a copy of the relevant part of the minutes
+       (<a href="https://github.com/pchampin/minutes_to_gh/issues/3">⚠ CURRENTLY BUGGY</a>).
   <tr>
     <td>
       <code>debug</code>
