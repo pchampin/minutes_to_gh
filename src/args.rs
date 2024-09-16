@@ -13,7 +13,14 @@ pub struct CmdArgs {
     pub token: String,
 
     /// Log-level (error, warn, info, debug, trace)
-    #[arg(short, long, env = "M2G_LOG_LEVEL", default_value = "info")]
+    #[arg(
+        short,
+        long,
+        env = "M2G_LOG_LEVEL",
+        default_value = "info",
+        global = true,
+        display_order = 99
+    )]
     pub log_level: log::LevelFilter,
 
     #[command(subcommand)]
@@ -45,19 +52,34 @@ pub struct EngineArgs {
     pub transcript: bool,
 
     /// Minimum delay (in sec) between processing two issues (throttling GitHub API calls)
-    #[arg(short, long, env = "M2G_RATE_LIMIT", default_value_t = FinitePositiveF64(0.2), value_parser = FinitePositiveF64::from_str)]
+    #[arg(short, long, env = "M2G_RATE_LIMIT", default_value_t = FinitePositiveF64(0.2), value_parser = FinitePositiveF64::from_str, help_heading = "Advanced options", hide_short_help = true)]
     pub rate_limit: FinitePositiveF64,
 
     /// Do not actually perform the operations on GitHub
-    #[arg(short = 'n', long)]
+    #[arg(
+        short = 'n',
+        long,
+        help_heading = "Advanced options",
+        hide_short_help = true
+    )]
     pub dry_run: bool,
 
     /// URL to read minutes from (default: constructed from channel and date)
-    #[arg(long, env = "M2G_URL")]
+    #[arg(
+        long,
+        env = "M2G_URL",
+        help_heading = "Advanced options",
+        hide_short_help = true
+    )]
     pub url: Option<String>,
 
     /// File to read minutes from (default: fetched from URL)
-    #[arg(long, env = "M2G_FILE")]
+    #[arg(
+        long,
+        env = "M2G_FILE",
+        help_heading = "Advanced options",
+        hide_short_help = true
+    )]
     pub file: Option<String>,
 }
 
