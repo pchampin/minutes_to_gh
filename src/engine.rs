@@ -6,7 +6,6 @@ use chrono::{DateTime, Datelike, NaiveDateTime, Utc};
 use ego_tree::NodeRef;
 use futures::Stream;
 use governor::{DefaultDirectRateLimiter, Quota, RateLimiter};
-use html2md_rs::to_md::safe_from_html_to_md;
 use octocrab::{issues::IssueHandler, models::issues::Comment, Octocrab};
 use regex::Regex;
 use reqwest::Response;
@@ -104,16 +103,18 @@ impl Engine {
                     yield Outcome::skipped(issue, comment.html_url);
                     continue;
                 }
+
                 let mut message = self.message_template
                     .replace("%URL%", &link);
                 if self.transcript {
                     let transcript = format!(
-                        "\n\n<details><summary><i>View the transcript</i></summary>\n\n{}\n----\n</details>",
+                        "\n\n<details><summary><i>View the transcript</i></summary>\n\n{}\n<hr /></details>",
                         fragment,
                     );
                     message += &transcript;
                 }
                 log::trace!("Comment message: {message}");
+
                 if self.dry_run {
                     log::info!("Comment posted: (not really, running in dry mode)");
                     yield Outcome::faked(issue);
@@ -229,7 +230,7 @@ fn extract_fragment<'a>(id: &'a str, e: ElementRef<'a>) -> DocFragment<'a> {
             _ => None,
         });
     let html = once(e_frag).chain(s_frags).collect::<Vec<_>>().join("");
-    let content = safe_from_html_to_md(html).unwrap_or("".into());
+    let content = ammonia::clean(&html);
     DocFragment { id, content }
 }
 
