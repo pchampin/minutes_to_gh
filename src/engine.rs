@@ -1,6 +1,6 @@
 use std::{iter::once, sync::LazyLock, time::Duration};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Error, Result};
 use async_stream::try_stream;
 use chrono::{DateTime, Datelike, NaiveDateTime, Utc};
 use ego_tree::NodeRef;
@@ -95,13 +95,21 @@ impl Engine {
                 self.governor.until_ready().await;
                 log::debug!("{} referenced in {link}", issue.url);
                 let issues = self.github.issues(issue.owner, issue.repo);
-                if let Some(comment) = comment_to_link(&link, &issues, issue.id, self.min_date).await? {
-                    log::info!(
-                        "Skipping {issue}, link to minutes already there: {}",
-                        comment.html_url,
-                    );
-                    yield Outcome::skipped(issue, comment.html_url);
-                    continue;
+                match comment_to_link(&link, &issues, issue.id, self.min_date).await {
+                    Err(err) => {
+                        log::error!("{}", err);
+                        yield Outcome::error(issue, err.context("Fetching comments"));
+                        continue;
+                    }
+                    Ok(Some(comment)) => {
+                        log::info!(
+                            "Skipping {issue}, link to minutes already there: {}",
+                            comment.html_url,
+                        );
+                        yield Outcome::skipped(issue, comment.html_url);
+                        continue;
+                    }
+                    _ => {}
                 }
 
                 let mut message = self.message_template
@@ -120,11 +128,17 @@ impl Engine {
                     yield Outcome::faked(issue);
                     continue;
                 }
-                let comment = issues
-                    .create_comment(issue.id, message)
-                    .await?;
-                log::info!("Comment posted: {}", comment.html_url);
-                yield Outcome::created(issue, comment.html_url);
+                match issues.create_comment(issue.id, message).await {
+                    Err(err) => {
+                        log::error!("{}", err);
+                        yield Outcome::error(issue, Error::new(err).context("Posting comment"));
+                        continue;
+                    }
+                    Ok(comment) => {
+                        log::info!("Comment posted: {}", comment.html_url);
+                        yield Outcome::created(issue, comment.html_url);
+                    }
+                }
             }
         }
     }

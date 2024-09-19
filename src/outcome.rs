@@ -2,13 +2,13 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Outcome {
     pub kind: OutcomeKind,
     pub issue: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum OutcomeKind {
     /// A comment was created for this issue (URL or the comment)
     Created(String),
@@ -16,6 +16,9 @@ pub enum OutcomeKind {
     Faked,
     /// This issue was skipped because of a comment pointing to the minutes already exists (URL of the comment)
     Skipped(String),
+    /// An error occurred
+    #[expect(dead_code)]
+    Error(anyhow::Error),
 }
 
 impl Outcome {
@@ -34,6 +37,12 @@ impl Outcome {
     pub fn skipped(issue: Issue, comment: impl ToString) -> Self {
         Self {
             kind: OutcomeKind::Skipped(comment.to_string()),
+            issue: issue.url.to_string(),
+        }
+    }
+    pub fn error(issue: Issue, error: anyhow::Error) -> Self {
+        Self {
+            kind: OutcomeKind::Error(error),
             issue: issue.url.to_string(),
         }
     }

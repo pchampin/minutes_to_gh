@@ -11,7 +11,7 @@ use crate::{
     engine::Engine,
     outcome::{
         Outcome,
-        OutcomeKind::{Created, Faked, Skipped},
+        OutcomeKind::{Created, Error, Faked, Skipped},
     },
 };
 
@@ -197,6 +197,13 @@ impl Bot {
                     Skipped(comment) => {
                         self.respond(message, &format!("comment already there: {comment}"))
                             .await
+                    }
+                    Error(_) => {
+                        self.respond(
+                            message,
+                            &format!("a problem occurred when processing {issue}"),
+                        )
+                        .await
                     }
                 }
             })
