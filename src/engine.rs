@@ -66,14 +66,23 @@ impl Engine {
         };
         let dom = Html::parse_document(&html);
 
-        let group = format!("wg/{channel_name}");
-        let repos_url = format!("https://raw.githubusercontent.com/w3c/groups/refs/heads/main/{group}/repositories.json");
-        let repos: Vec<Repository> = reqwest::get(&repos_url)
-            .await
-            .and_then(Response::error_for_status)
-            .with_context(|| format!("Failed loading JSON from {url}"))?
-            .json()
-            .await?;
+        let repos_urls: Vec<String> = args.groups
+            .unwrap_or_else(|| format!("wg/{channel_name}"))
+            .split(",")
+            .map(|g| format!("https://raw.githubusercontent.com/w3c/groups/refs/heads/main/{g}/repositories.json"))
+            .collect();
+
+        let mut repos = vec![];
+        for url in &repos_urls {
+            log::debug!("Retrieving owned repositories from {url}");
+            let partial: Vec<Repository> = reqwest::get(url)
+                .await
+                .and_then(Response::error_for_status)
+                .with_context(|| format!("Failed loading JSON from {url}"))?
+                .json()
+                .await?;
+            repos.extend_from_slice(&partial);
+        }
 
         let github = Octocrab::builder().personal_token(token).build()?;
         let min_date = NaiveDateTime::from(args.date.pred_opt().unwrap()).and_utc();
