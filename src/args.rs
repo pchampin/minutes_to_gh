@@ -51,6 +51,10 @@ pub struct EngineArgs {
     #[arg(short = 'T', long, env = "M2G_TRANSCRIPT", default_value_t = false)]
     pub transcript: bool,
 
+    /// Comma-separated list of groups concerned by these minutes (defaults to "wg/<channel>")
+    #[arg(short, long, env = "M2G_GROUP")]
+    pub groups: Option<String>,
+
     /// Minimum delay (in sec) between processing two issues (throttling GitHub API calls)
     #[arg(short, long, env = "M2G_RATE_LIMIT", default_value_t = FinitePositiveF64(0.2), value_parser = FinitePositiveF64::from_str, help_heading = "Advanced options", hide_short_help = true)]
     pub rate_limit: FinitePositiveF64,

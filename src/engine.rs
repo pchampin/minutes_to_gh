@@ -18,12 +18,14 @@ use scraper::{
 
 use crate::args::EngineArgs;
 use crate::outcome::{Issue, Outcome};
+use crate::repositories::Repository;
 
 /// The engine of this create, locating mentions to GitHub issues/PRs in minutes,
 /// and commenting the corresponding issue/PR with a link to the relevant part of the minutes.
 pub struct Engine {
     url: String,
     dom: Html,
+    repos: Vec<Repository>,
     github: Octocrab,
     min_date: DateTime<Utc>,
     message_template: String,
@@ -64,6 +66,24 @@ impl Engine {
         };
         let dom = Html::parse_document(&html);
 
+        let repos_urls: Vec<String> = args.groups
+            .unwrap_or_else(|| format!("wg/{channel_name}"))
+            .split(",")
+            .map(|g| format!("https://raw.githubusercontent.com/w3c/groups/refs/heads/main/{g}/repositories.json"))
+            .collect();
+
+        let mut repos = vec![];
+        for url in &repos_urls {
+            log::debug!("Retrieving owned repositories from {url}");
+            let partial: Vec<Repository> = reqwest::get(url)
+                .await
+                .and_then(Response::error_for_status)
+                .with_context(|| format!("Failed loading JSON from {url}"))?
+                .json()
+                .await?;
+            repos.extend_from_slice(&partial);
+        }
+
         let github = Octocrab::builder().personal_token(token).build()?;
         let min_date = NaiveDateTime::from(args.date.pred_opt().unwrap()).and_utc();
         let message_template = format!(
@@ -79,6 +99,7 @@ impl Engine {
         Ok(Self {
             url,
             dom,
+            repos,
             github,
             min_date,
             message_template,
@@ -94,6 +115,12 @@ impl Engine {
             for (issue, link, fragment) in issues_with_link(&self.dom, &self.url, self.transcript) {
                 self.governor.until_ready().await;
                 log::debug!("{} referenced in {link}", issue.url);
+
+                if !self.repos.iter().any(|r| r.contains(&issue)) {
+                    log::info!("Skipping {issue}, not owned by the current group(s)");
+                    yield Outcome::not_owned(issue);
+                    continue;
+                }
                 let issues = self.github.issues(issue.owner, issue.repo);
                 match comment_to_link(&link, &issues, issue.id, self.min_date).await {
                     Err(err) => {
@@ -106,7 +133,7 @@ impl Engine {
                             "Skipping {issue}, link to minutes already there: {}",
                             comment.html_url,
                         );
-                        yield Outcome::skipped(issue, comment.html_url);
+                        yield Outcome::duplicate(issue, comment.html_url);
                         continue;
                     }
                     _ => {}

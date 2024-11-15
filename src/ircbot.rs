@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::NaiveDate;
 use futures::prelude::*;
 use governor::{DefaultKeyedRateLimiter, Quota, RateLimiter};
 use irc::client::prelude::*;
@@ -11,7 +12,7 @@ use crate::{
     engine::Engine,
     outcome::{
         Outcome,
-        OutcomeKind::{Created, Error, Faked, Skipped},
+        OutcomeKind::{Created, Duplicate, Error, Faked, NotOwned},
     },
 };
 
@@ -63,10 +64,12 @@ impl Bot {
                         let res = match cmd {
                             BotCommand::Bye => self.bye(channel).await,
                             BotCommand::Help => self.help(&message).await,
-                            BotCommand::LinkIssues(transcript) => {
-                                self.link_issues(transcript, &message).await
+                            BotCommand::LinkIssues(transcript, groups) => {
+                                self.link_issues(transcript, groups, &message).await
                             }
-                            BotCommand::Debug => self.debug(&message).await,
+                            BotCommand::Debug(date, groups) => {
+                                self.debug(date, groups, &message).await
+                            }
                             BotCommand::Unrecognized => self.unrecognized(&message, cmd_str).await,
                         };
                         if let Err(err) = res {
@@ -134,7 +137,12 @@ impl Bot {
         .await
     }
 
-    async fn link_issues(&self, transcript: bool, message: &Message) -> Result<()> {
+    async fn link_issues(
+        &self,
+        transcript: bool,
+        groups: Option<&str>,
+        message: &Message,
+    ) -> Result<()> {
         debug_assert!(matches!(message.command, Command::PRIVMSG(..)));
         log::info!("Linking issues on {}", message.response_target().unwrap());
 
@@ -144,6 +152,7 @@ impl Bot {
                 channel: message.response_target().unwrap().to_string(),
                 date: chrono::offset::Local::now().date_naive(),
                 transcript,
+                groups: groups.map(ToString::to_string),
                 rate_limit: FinitePositiveF64::new_unchecked(1.0),
                 dry_run: false,
                 url: None,
@@ -153,18 +162,36 @@ impl Bot {
         .await
     }
 
-    async fn debug(&self, message: &Message) -> Result<()> {
+    async fn debug(
+        &self,
+        date: Option<&str>,
+        groups: Option<&str>,
+        message: &Message,
+    ) -> Result<()> {
         debug_assert!(matches!(message.command, Command::PRIVMSG(..)));
-        log::info!("Debug on {}", message.response_target().unwrap());
+        log::info!(
+            "Debug on {} at {} for {}",
+            message.response_target().unwrap(),
+            date.unwrap_or("current date"),
+            groups.unwrap_or("default group")
+        );
+
+        let date: NaiveDate = {
+            if let Some(datetxt) = date {
+                datetxt.parse()?
+            } else {
+                chrono::offset::Local::now().date_naive()
+            }
+        };
+        let groups = groups.map(ToString::to_string);
 
         self.do_link_issues(
             message,
             EngineArgs {
                 channel: message.response_target().unwrap().to_string(),
-                date: chrono::offset::Local::now().date_naive(),
-                // channel: "did".into(),
-                // date: "2024-08-22".parse().unwrap(),
+                date,
                 transcript: true,
+                groups,
                 rate_limit: FinitePositiveF64::new_unchecked(1.0),
                 dry_run: true,
                 url: None,
@@ -194,9 +221,16 @@ impl Bot {
                         )
                         .await
                     }
-                    Skipped(comment) => {
+                    Duplicate(comment) => {
                         self.respond(message, &format!("comment already there: {comment}"))
                             .await
+                    }
+                    NotOwned => {
+                        self.respond(
+                            message,
+                            &format!("issue {issue} not owned by current group(s)"),
+                        )
+                        .await
                     }
                     Error(_) => {
                         self.respond(
@@ -240,11 +274,11 @@ impl Bot {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum BotCommand {
+enum BotCommand<'a> {
     Bye,
     Help,
-    LinkIssues(bool),
-    Debug,
+    LinkIssues(bool, Option<&'a str>),
+    Debug(Option<&'a str>, Option<&'a str>),
     Unrecognized,
 }
 
@@ -259,22 +293,29 @@ macro_rules! lazy_re {
     };
 }
 
-impl From<&'_ str> for BotCommand {
-    fn from(value: &str) -> Self {
+impl<'a> From<&'a str> for BotCommand<'a> {
+    fn from(value: &'a str) -> Self {
         use BotCommand::*;
 
-        lazy_re! { LINK_ISSUES = "^(please )?(back)?link (github )?issues( to minutes)?(?<transcript> with transcript)?$" }
-        lazy_re! { LINK_HELP = "^(please )?help$" }
-        lazy_re! { LINK_BYE = "^bye|out|(please )?(excuse us|leave|part)$" }
+        lazy_re! { LINK_ISSUES = "^(please )?(back)?link (github )?issues( to minutes)?(?<transcript> with transcript)?( for (?<groups>[^ ]+))?$" }
+        lazy_re! { HELP = "^(please )?help$" }
+        lazy_re! { BYE = "^bye|out|(please )?(excuse us|leave|part)$" }
+        lazy_re! { DEBUG= "^debug( date (?<date>[^ ]+))?( groups (?<groups>[^ ]+))?$" }
 
         if let Some(captures) = LINK_ISSUES.captures(value) {
-            LinkIssues(captures.name("transcript").is_some())
-        } else if LINK_HELP.is_match(value) {
+            LinkIssues(
+                captures.name("transcript").is_some(),
+                captures.name("groups").map(|m| m.as_str()),
+            )
+        } else if HELP.is_match(value) {
             Help
-        } else if LINK_BYE.is_match(value) {
+        } else if BYE.is_match(value) {
             Bye
-        } else if value == "debug" {
-            Debug
+        } else if let Some(captures) = DEBUG.captures(value) {
+            Debug(
+                captures.name("date").map(|m| m.as_str()),
+                captures.name("groups").map(|m| m.as_str()),
+            )
         } else {
             Unrecognized
         }
@@ -308,39 +349,74 @@ mod test {
     #[test_case("please part" => BotCommand::Bye)]
     #[test_case("help" => BotCommand::Help)]
     #[test_case("please help" => BotCommand::Help)]
-    #[test_case("debug" => BotCommand::Debug)]
-    #[test_case("backlink github issues" => BotCommand::LinkIssues(false))]
-    #[test_case("backlink github issues to minutes" => BotCommand::LinkIssues(false))]
-    #[test_case("backlink github issues to minutes with transcript" => BotCommand::LinkIssues(true))]
-    #[test_case("backlink github issues with transcript" => BotCommand::LinkIssues(true))]
-    #[test_case("backlink issues" => BotCommand::LinkIssues(false))]
-    #[test_case("backlink issues to minutes" => BotCommand::LinkIssues(false))]
-    #[test_case("backlink issues to minutes with transcript" => BotCommand::LinkIssues(true))]
-    #[test_case("backlink issues with transcript" => BotCommand::LinkIssues(true))]
-    #[test_case("link github issues" => BotCommand::LinkIssues(false))]
-    #[test_case("link github issues to minutes" => BotCommand::LinkIssues(false))]
-    #[test_case("link github issues to minutes with transcript" => BotCommand::LinkIssues(true))]
-    #[test_case("link github issues with transcript" => BotCommand::LinkIssues(true))]
-    #[test_case("link issues" => BotCommand::LinkIssues(false))]
-    #[test_case("link issues to minutes" => BotCommand::LinkIssues(false))]
-    #[test_case("link issues to minutes with transcript" => BotCommand::LinkIssues(true))]
-    #[test_case("link issues with transcript" => BotCommand::LinkIssues(true))]
-    #[test_case("please backlink github issues" => BotCommand::LinkIssues(false))]
-    #[test_case("please backlink github issues to minutes" => BotCommand::LinkIssues(false))]
-    #[test_case("please backlink github issues to minutes with transcript" => BotCommand::LinkIssues(true))]
-    #[test_case("please backlink github issues with transcript" => BotCommand::LinkIssues(true))]
-    #[test_case("please backlink issues" => BotCommand::LinkIssues(false))]
-    #[test_case("please backlink issues to minutes" => BotCommand::LinkIssues(false))]
-    #[test_case("please backlink issues to minutes with transcript" => BotCommand::LinkIssues(true))]
-    #[test_case("please backlink issues with transcript" => BotCommand::LinkIssues(true))]
-    #[test_case("please link github issues" => BotCommand::LinkIssues(false))]
-    #[test_case("please link github issues to minutes" => BotCommand::LinkIssues(false))]
-    #[test_case("please link github issues to minutes with transcript" => BotCommand::LinkIssues(true))]
-    #[test_case("please link github issues with transcript" => BotCommand::LinkIssues(true))]
-    #[test_case("please link issues" => BotCommand::LinkIssues(false))]
-    #[test_case("please link issues to minutes" => BotCommand::LinkIssues(false))]
-    #[test_case("please link issues to minutes with transcript" => BotCommand::LinkIssues(true))]
-    #[test_case("please link issues with transcript" => BotCommand::LinkIssues(true))]
+    #[test_case("debug" => BotCommand::Debug(None, None))]
+    #[test_case("debug date 2024-11-14" => BotCommand::Debug(Some("2024-11-14"), None))]
+    #[test_case("debug date 2024-11-14 groups wg/did,cg/credentials" => BotCommand::Debug(Some("2024-11-14"), Some("wg/did,cg/credentials")))]
+    #[test_case("debug groups wg/did,cg/credentials" => BotCommand::Debug(None, Some("wg/did,cg/credentials")))]
+    #[test_case("backlink github issues" => BotCommand::LinkIssues(false, None))]
+    #[test_case("backlink github issues for wg/foo,cg/bar" => BotCommand::LinkIssues(false, Some("wg/foo,cg/bar")))]
+    #[test_case("backlink github issues to minutes" => BotCommand::LinkIssues(false, None))]
+    #[test_case("backlink github issues to minutes for wg/foo,cg/bar" => BotCommand::LinkIssues(false, Some("wg/foo,cg/bar")))]
+    #[test_case("backlink github issues to minutes with transcript" => BotCommand::LinkIssues(true, None))]
+    #[test_case("backlink github issues to minutes with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
+    #[test_case("backlink github issues with transcript" => BotCommand::LinkIssues(true, None))]
+    #[test_case("backlink github issues with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
+    #[test_case("backlink issues" => BotCommand::LinkIssues(false, None))]
+    #[test_case("backlink issues for wg/foo,cg/bar" => BotCommand::LinkIssues(false, Some("wg/foo,cg/bar")))]
+    #[test_case("backlink issues to minutes" => BotCommand::LinkIssues(false, None))]
+    #[test_case("backlink issues to minutes for wg/foo,cg/bar" => BotCommand::LinkIssues(false, Some("wg/foo,cg/bar")))]
+    #[test_case("backlink issues to minutes with transcript" => BotCommand::LinkIssues(true, None))]
+    #[test_case("backlink issues to minutes with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
+    #[test_case("backlink issues with transcript" => BotCommand::LinkIssues(true, None))]
+    #[test_case("backlink issues with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
+    #[test_case("link github issues" => BotCommand::LinkIssues(false, None))]
+    #[test_case("link github issues for wg/foo,cg/bar" => BotCommand::LinkIssues(false, Some("wg/foo,cg/bar")))]
+    #[test_case("link github issues to minutes" => BotCommand::LinkIssues(false, None))]
+    #[test_case("link github issues to minutes for wg/foo,cg/bar" => BotCommand::LinkIssues(false, Some("wg/foo,cg/bar")))]
+    #[test_case("link github issues to minutes with transcript" => BotCommand::LinkIssues(true, None))]
+    #[test_case("link github issues to minutes with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
+    #[test_case("link github issues with transcript" => BotCommand::LinkIssues(true, None))]
+    #[test_case("link github issues with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
+    #[test_case("link issues" => BotCommand::LinkIssues(false, None))]
+    #[test_case("link issues for wg/foo,cg/bar" => BotCommand::LinkIssues(false, Some("wg/foo,cg/bar")))]
+    #[test_case("link issues to minutes" => BotCommand::LinkIssues(false, None))]
+    #[test_case("link issues to minutes for wg/foo,cg/bar" => BotCommand::LinkIssues(false, Some("wg/foo,cg/bar")))]
+    #[test_case("link issues to minutes with transcript" => BotCommand::LinkIssues(true, None))]
+    #[test_case("link issues to minutes with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
+    #[test_case("link issues with transcript" => BotCommand::LinkIssues(true, None))]
+    #[test_case("link issues with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
+    #[test_case("please backlink github issues" => BotCommand::LinkIssues(false, None))]
+    #[test_case("please backlink github issues for wg/foo,cg/bar" => BotCommand::LinkIssues(false, Some("wg/foo,cg/bar")))]
+    #[test_case("please backlink github issues to minutes" => BotCommand::LinkIssues(false, None))]
+    #[test_case("please backlink github issues to minutes for wg/foo,cg/bar" => BotCommand::LinkIssues(false, Some("wg/foo,cg/bar")))]
+    #[test_case("please backlink github issues to minutes with transcript" => BotCommand::LinkIssues(true, None))]
+    #[test_case("please backlink github issues to minutes with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
+    #[test_case("please backlink github issues with transcript" => BotCommand::LinkIssues(true, None))]
+    #[test_case("please backlink github issues with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
+    #[test_case("please backlink issues" => BotCommand::LinkIssues(false, None))]
+    #[test_case("please backlink issues for wg/foo,cg/bar" => BotCommand::LinkIssues(false, Some("wg/foo,cg/bar")))]
+    #[test_case("please backlink issues to minutes" => BotCommand::LinkIssues(false, None))]
+    #[test_case("please backlink issues to minutes for wg/foo,cg/bar" => BotCommand::LinkIssues(false, Some("wg/foo,cg/bar")))]
+    #[test_case("please backlink issues to minutes with transcript" => BotCommand::LinkIssues(true, None))]
+    #[test_case("please backlink issues to minutes with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
+    #[test_case("please backlink issues with transcript" => BotCommand::LinkIssues(true, None))]
+    #[test_case("please backlink issues with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
+    #[test_case("please link github issues" => BotCommand::LinkIssues(false, None))]
+    #[test_case("please link github issues for wg/foo,cg/bar" => BotCommand::LinkIssues(false, Some("wg/foo,cg/bar")))]
+    #[test_case("please link github issues to minutes" => BotCommand::LinkIssues(false, None))]
+    #[test_case("please link github issues to minutes for wg/foo,cg/bar" => BotCommand::LinkIssues(false, Some("wg/foo,cg/bar")))]
+    #[test_case("please link github issues to minutes with transcript" => BotCommand::LinkIssues(true, None))]
+    #[test_case("please link github issues to minutes with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
+    #[test_case("please link github issues with transcript" => BotCommand::LinkIssues(true, None))]
+    #[test_case("please link github issues with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
+    #[test_case("please link issues" => BotCommand::LinkIssues(false, None))]
+    #[test_case("please link issues for wg/foo,cg/bar" => BotCommand::LinkIssues(false, Some("wg/foo,cg/bar")))]
+    #[test_case("please link issues to minutes" => BotCommand::LinkIssues(false, None))]
+    #[test_case("please link issues to minutes for wg/foo,cg/bar" => BotCommand::LinkIssues(false, Some("wg/foo,cg/bar")))]
+    #[test_case("please link issues to minutes with transcript" => BotCommand::LinkIssues(true, None))]
+    #[test_case("please link issues to minutes with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
+    #[test_case("please link issues with transcript" => BotCommand::LinkIssues(true, None))]
+    #[test_case("please link issues with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
     #[test_case("anything else" => BotCommand::Unrecognized)]
     fn bot_command(txt: &str) -> BotCommand {
         BotCommand::from(txt)
