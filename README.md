@@ -12,8 +12,8 @@ How it works
 ------------
 
 This program fetches the minutes of a meeting (an HTML file),
-find all mention to GitHub issues or pull requests,
-and post a comment to each of them,
+find all mention to GitHub issues or pull requests in a heading (H1, H2, H3...).
+It then posts a comment to each such issue or pull request,
 containing a link to the (sub)section where this issue/pull request was mentioned,
 as well as, optionally, a copy of that section (converted to markdown).
 

@@ -144,8 +144,8 @@ impl Engine {
     }
 }
 
-/// Iter over all github issues cited in dom,
-/// together with the most appropriate link to refer to where this issue was discussed,
+/// Iter over all github issues cited in an HTML heading,
+/// together with the link to that heading,
 /// and optionally (see below) a markdown version of the part of the minutes where they are discussed.
 ///
 /// The markdown fragment is only extracted if `transcript` is true,
@@ -155,7 +155,9 @@ fn issues_with_link<'a>(
     url: &'a str,
     transcript: bool,
 ) -> impl Iterator<Item = (Issue<'a>, String, String)> {
-    static SEL: LazyLock<Selector> = LazyLock::new(|| Selector::parse("a").unwrap());
+    static SEL: LazyLock<Selector> = LazyLock::new(|| {
+        Selector::parse(r"h1[id] a, h2[id] a, h3[id] a, h4[id] a, h5[id] a, h6[id] a").unwrap()
+    });
     dom.select(&SEL)
         .map(|a| (a, a.attr("href").and_then(Issue::try_from_url)))
         .filter_map(transpose_2nd)
