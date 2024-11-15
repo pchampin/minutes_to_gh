@@ -233,8 +233,16 @@ fn try_as_fragment_boundary(e: ElementRef) -> Option<(&str, ElementRef)> {
     }
 }
 
-/// Extract fragment reachable from this element if it has an id.
+/// Extract and convert to markdown the fragment reachable from this element.
+///
+/// Note that the markdown is in fact sanitized HTML (which is compatible with markdown).
+/// Note also `@words` are surrounded with `<code>` to prevent spurious @-mentions of github users.
+///
+/// # Precondition
+/// Element `e` must have an `id` attribute.
+
 fn extract_fragment<'a>(id: &'a str, e: ElementRef<'a>) -> DocFragment<'a> {
+    static AT_WORD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"@[A-Za-z0-9_]+").unwrap());
     debug_assert!(e.value().attr("id") == Some(id));
     let e_frag = e.html();
     let s_frags = e
@@ -247,6 +255,7 @@ fn extract_fragment<'a>(id: &'a str, e: ElementRef<'a>) -> DocFragment<'a> {
         });
     let html = once(e_frag).chain(s_frags).collect::<Vec<_>>().join("");
     let content = ammonia::clean(&html);
+    let content = AT_WORD.replace_all(&content, "<code>$0</code>").to_string();
     DocFragment { id, content }
 }
 
