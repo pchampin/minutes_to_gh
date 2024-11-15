@@ -11,7 +11,7 @@ use crate::{
     engine::Engine,
     outcome::{
         Outcome,
-        OutcomeKind::{Created, Error, Faked, Skipped},
+        OutcomeKind::{Created, Duplicate, Error, Faked, NotOwned},
     },
 };
 
@@ -194,10 +194,11 @@ impl Bot {
                         )
                         .await
                     }
-                    Skipped(comment) => {
+                    Duplicate(comment) => {
                         self.respond(message, &format!("comment already there: {comment}"))
                             .await
                     }
+                    NotOwned => self.respond(message, "issue not owned by this group").await,
                     Error(_) => {
                         self.respond(
                             message,

@@ -6,6 +6,7 @@ mod engine;
 mod ircbot;
 mod manual;
 mod outcome;
+mod repositories;
 
 #[tokio::main]
 async fn main() -> Result<()> {

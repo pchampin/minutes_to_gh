@@ -15,7 +15,9 @@ pub enum OutcomeKind {
     /// A comment was not created because of dry-run mode
     Faked,
     /// This issue was skipped because of a comment pointing to the minutes already exists (URL of the comment)
-    Skipped(String),
+    Duplicate(String),
+    /// This issue was skipped because it is not in a repository owned by the current group
+    NotOwned,
     /// An error occurred
     #[expect(dead_code)]
     Error(anyhow::Error),
@@ -34,9 +36,15 @@ impl Outcome {
             issue: issue.url.to_string(),
         }
     }
-    pub fn skipped(issue: Issue, comment: impl ToString) -> Self {
+    pub fn duplicate(issue: Issue, comment: impl ToString) -> Self {
         Self {
-            kind: OutcomeKind::Skipped(comment.to_string()),
+            kind: OutcomeKind::Duplicate(comment.to_string()),
+            issue: issue.url.to_string(),
+        }
+    }
+    pub fn not_owned(issue: Issue) -> Self {
+        Self {
+            kind: OutcomeKind::NotOwned,
             issue: issue.url.to_string(),
         }
     }

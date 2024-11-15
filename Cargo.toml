@@ -1,7 +1,7 @@
 [package]
 name = "minutes_to_gh"
 description = "an IRC bot to link github issues and PRs to the minutes of the meetings where they were discussed"
-version = "0.7.1"
+version = "0.8.0"
 homepage = "https://github.com/pchampin/minutes_to_gh"
 edition = "2021"
 
@@ -19,7 +19,8 @@ irc = { version = "1.0.0", features = ["channel-lists", "ctcp", "tls-rust"], def
 log = "0.4.22"
 octocrab = "0.39.0"
 regex = "1.10.6"
-reqwest = { version = "0.12.7", features = ["charset", "http2", "rustls-tls-native-roots"], default-features = false }
+reqwest = { version = "0.12.7", features = ["charset", "http2", "json", "rustls-tls-native-roots"], default-features = false }
+serde = "1.0"
 scraper = "0.20.0"
 tokio = { version = "1.39.3", features = ["macros", "rt", "rt-multi-thread"] }
 
