@@ -48,7 +48,7 @@ pub struct EngineArgs {
     pub date: NaiveDate,
 
     /// Include transcript in GitHub comment
-    #[arg(short, long, env = "M2G_TRANSCRIPT", default_value_t = false)]
+    #[arg(short = 'T', long, env = "M2G_TRANSCRIPT", default_value_t = false)]
     pub transcript: bool,
 
     /// Minimum delay (in sec) between processing two issues (throttling GitHub API calls)
