@@ -117,7 +117,7 @@ impl Engine {
                 log::debug!("{} referenced in {link}", issue.url);
 
                 if !self.repos.iter().any(|r| r.contains(&issue)) {
-                    log::info!("Skipping {issue}, not owned by the current group");
+                    log::info!("Skipping {issue}, not owned by the current group(s)");
                     yield Outcome::not_owned(issue);
                     continue;
                 }

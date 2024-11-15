@@ -20,6 +20,9 @@ as well as, optionally, a copy of that section (converted to markdown).
 Note that the program will not add a comment if it finds one already containing the same link,
 so it should be safe to run it several times.
 
+Note also that the program will only add comments in github repositories owned by the current group.
+The current group is inferred from the IRC channel, or can be provided explicitly.
+
 Quick start
 -----------
 
@@ -87,10 +90,12 @@ The IRC bot supports the following commands (always preceded by `"<nickname>, "`
 <table>
   <tr>
     <td>
-      <code>[please] link [github] issues [to minutes] [with transcript]</code>
+      <code>[please] link [github] issues [to minutes] [with transcript] [for &lt;groups&gt;]</code>
     <td>
        <a href="#how-it-works">Process</a> the minutes of the current day for the current channel.
        If <code>with transcript</code> is used, the GitHub comments will include a copy of the relevant part of the minutes.
+       Optionally, a comma-separated list of groups (e.g. <code>wg/did,cg/credentials-ld</code>) can be provided
+       (otherwise, <code>wg/&lt;irc-channel&gt;</code> will be assumed).
   <tr>
     <td>
       <code>debug</code>

@@ -16,7 +16,7 @@ pub enum OutcomeKind {
     Faked,
     /// This issue was skipped because of a comment pointing to the minutes already exists (URL of the comment)
     Duplicate(String),
-    /// This issue was skipped because it is not in a repository owned by the current group
+    /// This issue was skipped because it is not in a repository owned by the current group(s)
     NotOwned,
     /// An error occurred
     #[expect(dead_code)]
