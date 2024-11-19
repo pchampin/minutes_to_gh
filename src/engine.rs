@@ -124,7 +124,7 @@ impl Engine {
                 let issues = self.github.issues(issue.owner, issue.repo);
                 match comment_to_link(&link, &issues, issue.id, self.min_date).await {
                     Err(err) => {
-                        log::error!("{}", err);
+                        log::error!("{:?}", err);
                         yield Outcome::error(issue, err.context("Fetching comments"));
                         continue;
                     }
@@ -157,7 +157,7 @@ impl Engine {
                 }
                 match issues.create_comment(issue.id, message).await {
                     Err(err) => {
-                        log::error!("{}", err);
+                        log::error!("{:?}", err);
                         yield Outcome::error(issue, Error::new(err).context("Posting comment"));
                         continue;
                     }
