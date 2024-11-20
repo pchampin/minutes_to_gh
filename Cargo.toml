@@ -5,6 +5,9 @@ version = "0.8.0"
 homepage = "https://github.com/pchampin/minutes_to_gh"
 edition = "2021"
 
+[profile.release]
+strip = true
+
 [dependencies]
 ammonia = "4.0.0"
 anyhow = "1.0.86"
