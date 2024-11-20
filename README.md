@@ -8,6 +8,37 @@ It is available in two flavours:
 * an [IRC bot](#irc-bot-commands) that can be invoked right after the minutes have been generated, and
 * a [command line tool](#manual-mode) that can add links to minutes generated in the past.
 
+IRC bot commands
+----------------
+
+The IRC bot supports the following commands (always preceded by `"<nickname>, "`).
+
+<table>
+  <tr>
+    <td>
+      <code>[please] link [github] issues [to minutes] [with transcript] [for &lt;groups&gt;]</code>
+    <td>
+       <a href="#how-it-works">Process</a> the minutes of the current day for the current channel.<br/>
+       If <code>with transcript</code> is used, the GitHub comments will include a copy of the relevant part of the minutes.<br/>
+       Optionally, a comma-separated list of groups (e.g. <code>wg/did,cg/credentials-ld</code>) can be provided
+       (otherwise, <code>wg/&lt;irc-channel&gt;</code> will be assumed).
+  <tr>
+    <td>
+      <code>debug</code>
+    <td>
+      Pretend to <a href="#how-it-works">process</a> the minutes as above, but do not actually post the comments.
+  <tr>
+    <td>
+      <code>bye</code>, <code>[please] leave</code>
+    <td>
+      Leave the channel.
+  <tr>
+    <td>
+      <code>[please] help</code>
+    <td>
+      Display a help message with the version of the program and a link to its homepage and documentation.
+</table>
+
 How it works
 ------------
 
@@ -23,8 +54,8 @@ so it should be safe to run it several times.
 Note also that the program will only add comments in github repositories owned by the current group.
 The current group is inferred from the IRC channel, or can be provided explicitly.
 
-Quick start
------------
+Running it
+----------
 
 Before you start, you need to create a [GitHub token](https://github.com/settings/tokens)
 that will enable the program to post comments on GitHub on your behalf.
@@ -81,38 +112,6 @@ or
 ```bash
 cargo run -- help manual
 ```
-
-IRC bot commands
-----------------
-
-The IRC bot supports the following commands (always preceded by `"<nickname>, "`).
-
-<table>
-  <tr>
-    <td>
-      <code>[please] link [github] issues [to minutes] [with transcript] [for &lt;groups&gt;]</code>
-    <td>
-       <a href="#how-it-works">Process</a> the minutes of the current day for the current channel.
-       If <code>with transcript</code> is used, the GitHub comments will include a copy of the relevant part of the minutes.
-       Optionally, a comma-separated list of groups (e.g. <code>wg/did,cg/credentials-ld</code>) can be provided
-       (otherwise, <code>wg/&lt;irc-channel&gt;</code> will be assumed).
-  <tr>
-    <td>
-      <code>debug</code>
-    <td>
-      Pretend to <a href="#how-it-works">process</a> the minutes as above, but do not actually post the comments.
-  <tr>
-    <td>
-      <code>bye</code>, <code>[please] leave</code>
-    <td>
-      Leave the channel.
-  <tr>
-    <td>
-      <code>[please] help</code>
-    <td>
-      Display a help message with the version of the program and a link to its homepage and documentation.
-</table>
-
 
 Alternatives (with their cons)
 ------------------------------
