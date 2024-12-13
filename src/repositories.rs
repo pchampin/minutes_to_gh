@@ -1,4 +1,4 @@
-//! I define types to handle repositories.json files on https://www.github.com/w3c/groups
+//! I define types to handle repositories.json files on <https://www.github.com/w3c/groups>
 
 use serde::Deserialize;
 

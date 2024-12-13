@@ -51,7 +51,7 @@ pub struct EngineArgs {
     #[arg(short = 'T', long, env = "M2G_TRANSCRIPT", default_value_t = false)]
     pub transcript: bool,
 
-    /// Comma-separated list of groups concerned by these minutes (defaults to "wg/<channel>")
+    /// Comma-separated list of groups concerned by these minutes (defaults to "wg/{channel}")
     #[arg(short, long, env = "M2G_GROUP")]
     pub groups: Option<String>,
 

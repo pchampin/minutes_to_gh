@@ -267,7 +267,6 @@ fn try_as_fragment_boundary(e: ElementRef) -> Option<(&str, ElementRef)> {
 ///
 /// # Precondition
 /// Element `e` must have an `id` attribute.
-
 fn extract_fragment<'a>(id: &'a str, e: ElementRef<'a>) -> DocFragment<'a> {
     static AT_WORD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"@[A-Za-z0-9_]+").unwrap());
     debug_assert!(e.value().attr("id") == Some(id));
