@@ -5,7 +5,13 @@ use governor::{DefaultKeyedRateLimiter, Quota, RateLimiter};
 use irc::client::prelude::*;
 use regex::{Regex, RegexBuilder};
 
-use std::{sync::LazyLock, time::Duration};
+use std::{
+    sync::{
+        atomic::{AtomicUsize, Ordering::SeqCst},
+        LazyLock,
+    },
+    time::Duration,
+};
 
 use crate::{
     args::{EngineArgs, FinitePositiveF64, IrcBotArgs},
@@ -205,9 +211,12 @@ impl Bot {
         debug_assert!(matches!(message.command, Command::PRIVMSG(..)));
 
         let engine = Engine::new(self.token.clone(), args).await?;
+        let c = AtomicUsize::new(0);
+        let cref = &c;
         engine
             .run()
             .try_for_each(|outcome: Outcome| async move {
+                cref.fetch_add(1, SeqCst);
                 let issue = &outcome.issue;
                 match outcome.kind {
                     Created(comment) => {
@@ -241,7 +250,12 @@ impl Bot {
                     }
                 }
             })
-            .await
+            .await?;
+        if c.load(SeqCst) == 0 {
+            self.respond(message, "nothing to do (no issue in the (sub)topics)")
+                .await?;
+        }
+        Ok(())
     }
 
     async fn unrecognized(&self, message: &Message, cmd_str: &str) -> Result<()> {
