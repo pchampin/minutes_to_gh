@@ -163,6 +163,7 @@ impl Bot {
                 dry_run: false,
                 url: None,
                 file: None,
+                extra_repositories: vec![],
             },
         )
         .await
@@ -202,6 +203,7 @@ impl Bot {
                 dry_run: true,
                 url: None,
                 file: None,
+                extra_repositories: vec![],
             },
         )
         .await

@@ -20,9 +20,32 @@ impl Repository {
     }
 }
 
+impl From<&str> for Repository {
+    fn from(value: &str) -> Self {
+        let parts = value.splitn(2, '/').collect::<Vec<_>>();
+        let (org, repo) = match parts[..] {
+            [repo] => ("w3c", repo),
+            [org, repo] => (org, repo),
+            _ => unreachable!(),
+        };
+        Self {
+            name: repo.into(),
+            owner: org.into(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize)]
 /// JSON structure describing the owner of a github repository
 pub struct Owner {
     /// The github login of this owner
     pub login: String,
+}
+
+impl From<&str> for Owner {
+    fn from(value: &str) -> Self {
+        Owner {
+            login: value.into(),
+        }
+    }
 }

@@ -83,6 +83,11 @@ impl Engine {
                 .await?;
             repos.extend_from_slice(&partial);
         }
+        repos.extend(
+            args.extra_repositories
+                .iter()
+                .map(|x| Repository::from(x.as_str())),
+        );
 
         let github = Octocrab::builder().personal_token(token).build()?;
         let min_date = NaiveDateTime::from(args.date.pred_opt().unwrap()).and_utc();

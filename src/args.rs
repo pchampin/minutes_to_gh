@@ -85,6 +85,17 @@ pub struct EngineArgs {
         hide_short_help = true
     )]
     pub file: Option<String>,
+
+    /// Allowed repository (in addition to those belonging to the group)
+    ///
+    /// The format of this argument is either '{org}/{repo}' or '{repo}'.
+    /// In the latter case, the organization is assumed to be `w3c`.
+    #[arg(
+        long = "repository",
+        help_heading = "Advanced options",
+        hide_short_help = true
+    )]
+    pub extra_repositories: Vec<String>,
 }
 
 /// See [`SubCmdArgs::IrcBot`]
