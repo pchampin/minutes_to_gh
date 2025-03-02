@@ -193,7 +193,7 @@ fn issues_with_link<'a>(
     dom.select(&SEL)
         .map(|a| (a, a.attr("href").and_then(Issue::try_from_url)))
         .filter_map(transpose_2nd)
-        .map(move |(a, issue)| (issue, find_closest_hn_id(a, transcript)))
+        .map(move |(a, issue)| (issue, find_ancestor_hn_id(a, transcript)))
         .filter_map(transpose_2nd)
         .map(move |(issue, fragment)| {
             (issue, format!("{}#{}", &url, fragment.id), fragment.content)
@@ -235,6 +235,24 @@ fn transpose_2nd<T, U>(pair: (T, Option<U>)) -> Option<(T, U)> {
     }
 }
 
+/// Find the header (h1, h2...) with an id which is the closest ancestor of the given element,
+/// and return the corresponding DocFragment.
+///
+/// Note that if content is false, the content field of the returned DocFragment will be an empty string.
+fn find_ancestor_hn_id(e: ElementRef, content: bool) -> Option<DocFragment> {
+    element_ancestors(e)
+        .filter_map(try_as_fragment_boundary)
+        .map(|(id, e)| {
+            if content {
+                extract_fragment(id, e)
+            } else {
+                DocFragment::dummy(id)
+            }
+        })
+        .next()
+}
+
+#[expect(dead_code)]
 /// Find the header (h1, h2...) with an id which is closest before the given element,
 /// and return the corresponding DocFragment.
 ///
