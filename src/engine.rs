@@ -188,12 +188,12 @@ fn issues_with_link<'a>(
     transcript: bool,
 ) -> impl Iterator<Item = (Issue<'a>, String, String)> {
     static SEL: LazyLock<Selector> = LazyLock::new(|| {
-        Selector::parse(r"h1[id] a, h2[id] a, h3[id] a, h4[id] a, h5[id] a, h6[id] a").unwrap()
+        Selector::parse(r"h1[id] a, h2[id] a, h3[id] a, h4[id] a, h5[id] a, h6[id] a, h1[id] + * a, h2[id] + * a, h3[id] + * a, h4[id] + * a, h5[id] + * a, h6[id] + * a").unwrap()
     });
     dom.select(&SEL)
         .map(|a| (a, a.attr("href").and_then(Issue::try_from_url)))
         .filter_map(transpose_2nd)
-        .map(move |(a, issue)| (issue, find_ancestor_hn_id(a, transcript)))
+        .map(move |(a, issue)| (issue, find_relevant_hn_id(a, transcript)))
         .filter_map(transpose_2nd)
         .map(move |(issue, fragment)| {
             (issue, format!("{}#{}", &url, fragment.id), fragment.content)
@@ -235,12 +235,33 @@ fn transpose_2nd<T, U>(pair: (T, Option<U>)) -> Option<(T, U)> {
     }
 }
 
+#[expect(dead_code)]
 /// Find the header (h1, h2...) with an id which is the closest ancestor of the given element,
 /// and return the corresponding DocFragment.
 ///
 /// Note that if content is false, the content field of the returned DocFragment will be an empty string.
 fn find_ancestor_hn_id(e: ElementRef, content: bool) -> Option<DocFragment> {
     element_ancestors(e)
+        .filter_map(try_as_fragment_boundary)
+        .map(|(id, e)| {
+            if content {
+                extract_fragment(id, e)
+            } else {
+                DocFragment::dummy(id)
+            }
+        })
+        .next()
+}
+
+/// Find the header (h1, h2...) with an id which is the closest ancestor, or its predecessor, of the given element,
+/// and return the corresponding DocFragment.
+///
+/// Note that if content is false, the content field of the returned DocFragment will be an empty string.
+///
+/// This heuristics is somewhere in between [`find_ancestor_hn_id`] and [`find_closest_hn_id`].
+fn find_relevant_hn_id(e: ElementRef, content: bool) -> Option<DocFragment> {
+    element_ancestors(e)
+        .flat_map(element_prev_siblings)
         .filter_map(try_as_fragment_boundary)
         .map(|(id, e)| {
             if content {
