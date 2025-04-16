@@ -3,6 +3,7 @@ use clap::Parser;
 
 mod args;
 mod engine;
+mod error;
 mod ircbot;
 mod manual;
 mod outcome;

@@ -1,6 +1,6 @@
 use std::{iter::once, sync::LazyLock, time::Duration};
 
-use anyhow::{Context, Error, Result};
+use anyhow::{Error, Result};
 use async_stream::try_stream;
 use chrono::{DateTime, Datelike, NaiveDateTime, Utc};
 use ego_tree::NodeRef;
@@ -17,6 +17,7 @@ use scraper::{
 };
 
 use crate::args::EngineArgs;
+use crate::error::EngineCreationError;
 use crate::outcome::{Issue, Outcome};
 use crate::repositories::Repository;
 
@@ -35,7 +36,7 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub async fn new(token: String, args: EngineArgs) -> Result<Self> {
+    pub async fn new(token: String, args: EngineArgs) -> Result<Self, EngineCreationError> {
         let channel_name = if args.channel.starts_with('#') {
             &args.channel[1..]
         } else {
@@ -54,15 +55,15 @@ impl Engine {
 
         let html = if let Some(filename) = args.file {
             log::debug!("Reading from file {filename} instead of URL");
-            std::fs::read_to_string(&filename)
-                .with_context(|| format!("Failed loading minutes from file {filename}"))?
+            std::fs::read_to_string(&filename)?
         } else {
             reqwest::get(&url)
                 .await
                 .and_then(Response::error_for_status)
-                .with_context(|| format!("Failed loading minutes from {url}"))?
+                .map_err(EngineCreationError::minutes)?
                 .text()
-                .await?
+                .await
+                .map_err(EngineCreationError::minutes)?
         };
         let dom = Html::parse_document(&html);
 
@@ -78,9 +79,10 @@ impl Engine {
             let partial: Vec<Repository> = reqwest::get(url)
                 .await
                 .and_then(Response::error_for_status)
-                .with_context(|| format!("Failed loading JSON from {url}"))?
+                .map_err(EngineCreationError::w3c_api)?
                 .json()
-                .await?;
+                .await
+                .map_err(EngineCreationError::w3c_api)?;
             repos.extend_from_slice(&partial);
         }
         repos.extend(
