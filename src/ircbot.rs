@@ -16,6 +16,7 @@ use std::{
 use crate::{
     args::{EngineArgs, FinitePositiveF64, IrcBotArgs},
     engine::Engine,
+    error::EngineCreationError::MinutesNotFound,
     outcome::{
         Outcome,
         OutcomeKind::{Created, Duplicate, Error, Faked, NotOwned},
@@ -209,10 +210,24 @@ impl Bot {
         .await
     }
 
-    async fn do_link_issues(&self, message: &Message, args: EngineArgs) -> Result<()> {
+    async fn do_link_issues(&self, message: &Message, mut args: EngineArgs) -> Result<()> {
         debug_assert!(matches!(message.command, Command::PRIVMSG(..)));
 
-        let engine = Engine::new(self.token.clone(), args).await?;
+        let engine = match Engine::new(self.token.clone(), args.clone()).await {
+            Ok(engine) => engine,
+            Err(MinutesNotFound(..)) => {
+                static MSG: &str =
+                    "Minutes not found, maybe a timezone issue. Trying yesterday's minutes...";
+                log::info!("{}", MSG);
+                self.respond(message, MSG).await.unwrap_or(());
+                args.date = args
+                    .date
+                    .pred_opt()
+                    .ok_or_else(|| anyhow::anyhow!("Could not build date for yesterday"))?;
+                Engine::new(self.token.clone(), args).await?
+            }
+            Err(err) => Err(err)?,
+        };
         let c = AtomicUsize::new(0);
         let cref = &c;
         engine
