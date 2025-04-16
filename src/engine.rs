@@ -6,7 +6,7 @@ use chrono::{DateTime, Datelike, NaiveDateTime, Utc};
 use ego_tree::NodeRef;
 use futures::Stream;
 use governor::{DefaultDirectRateLimiter, Quota, RateLimiter};
-use octocrab::{issues::IssueHandler, models::issues::Comment, Octocrab};
+use octocrab::{Octocrab, issues::IssueHandler, models::issues::Comment};
 use regex::Regex;
 use reqwest::Response;
 use scraper::Node;

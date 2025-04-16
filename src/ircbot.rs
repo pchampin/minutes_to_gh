@@ -7,8 +7,8 @@ use regex::{Regex, RegexBuilder};
 
 use std::{
     sync::{
-        atomic::{AtomicUsize, Ordering::SeqCst},
         LazyLock,
+        atomic::{AtomicUsize, Ordering::SeqCst},
     },
     time::Duration,
 };
