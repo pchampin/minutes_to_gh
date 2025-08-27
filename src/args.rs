@@ -44,8 +44,8 @@ pub struct EngineArgs {
     pub channel: String,
 
     /// Date of the minutes, formatted as YYYY-MM-DD
-    #[arg(short, long, env = "M2G_DATE", default_value_t = today())]
-    pub date: NaiveDate,
+    #[arg(short, long, env = "M2G_DATE")]
+    pub date: Option<NaiveDate>,
 
     /// Include transcript in GitHub comment
     #[arg(short = 'T', long, env = "M2G_TRANSCRIPT", default_value_t = false)]
@@ -142,10 +142,6 @@ impl From<IrcBotArgs> for irc::client::prelude::Config {
             ..Self::default()
         }
     }
-}
-
-fn today() -> NaiveDate {
-    chrono::offset::Local::now().date_naive()
 }
 
 #[derive(Clone, Copy, Debug)]

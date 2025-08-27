@@ -157,7 +157,7 @@ impl Bot {
             message,
             EngineArgs {
                 channel: message.response_target().unwrap().to_string(),
-                date: chrono::offset::Local::now().date_naive(),
+                date: Some(chrono::offset::Local::now().date_naive()),
                 transcript,
                 groups: groups.map(ToString::to_string),
                 rate_limit: FinitePositiveF64::new_unchecked(1.0),
@@ -184,13 +184,13 @@ impl Bot {
             groups.unwrap_or("default group")
         );
 
-        let date: NaiveDate = {
+        let date: Option<NaiveDate> = Some({
             if let Some(datetxt) = date {
                 datetxt.parse()?
             } else {
                 chrono::offset::Local::now().date_naive()
             }
-        };
+        });
         let groups = groups.map(ToString::to_string);
 
         self.do_link_issues(
@@ -213,21 +213,22 @@ impl Bot {
     async fn do_link_issues(&self, message: &Message, mut args: EngineArgs) -> Result<()> {
         debug_assert!(matches!(message.command, Command::PRIVMSG(..)));
 
-        let engine = match Engine::new(self.token.clone(), args.clone()).await {
-            Ok(engine) => engine,
-            Err(MinutesNotFound(..)) => {
-                static MSG: &str =
-                    "Minutes not found, maybe a timezone issue. Trying yesterday's minutes...";
-                log::info!("{}", MSG);
-                self.respond(message, MSG).await.unwrap_or(());
-                args.date = args
-                    .date
-                    .pred_opt()
-                    .ok_or_else(|| anyhow::anyhow!("Could not build date for yesterday"))?;
-                Engine::new(self.token.clone(), args).await?
-            }
-            Err(err) => Err(err)?,
-        };
+        let engine =
+            match Engine::new(self.token.clone(), args.clone()).await {
+                Ok(engine) => engine,
+                Err(MinutesNotFound(..)) => {
+                    static MSG: &str =
+                        "Minutes not found, maybe a timezone issue. Trying yesterday's minutes...";
+                    log::info!("{}", MSG);
+                    self.respond(message, MSG).await.unwrap_or(());
+                    args.date =
+                        Some(args.date.unwrap().pred_opt().ok_or_else(|| {
+                            anyhow::anyhow!("Could not build date for yesterday")
+                        })?);
+                    Engine::new(self.token.clone(), args).await?
+                }
+                Err(err) => Err(err)?,
+            };
         let c = AtomicUsize::new(0);
         let cref = &c;
         engine
@@ -449,7 +450,7 @@ mod test {
     #[test_case("please link issues with transcript" => BotCommand::LinkIssues(true, None))]
     #[test_case("please link issues with transcript for wg/foo,cg/bar" => BotCommand::LinkIssues(true, Some("wg/foo,cg/bar")))]
     #[test_case("anything else" => BotCommand::Unrecognized)]
-    fn bot_command(txt: &str) -> BotCommand {
+    fn bot_command(txt: &str) -> BotCommand<'_> {
         BotCommand::from(txt)
     }
 }

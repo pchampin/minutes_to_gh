@@ -1072,7 +1072,7 @@ dependencies = [
 
 [[package]]
 name = "minutes_to_gh"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "ammonia",
  "anyhow",

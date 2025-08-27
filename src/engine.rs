@@ -42,12 +42,13 @@ impl Engine {
         } else {
             &args.channel
         };
+        let date = args.date.unwrap_or_else(today);
         let url = args.url.unwrap_or_else(|| {
             format!(
                 "https://www.w3.org/{}/{:02}/{:02}-{}-minutes.html",
-                args.date.year(),
-                args.date.month(),
-                args.date.day(),
+                date.year(),
+                date.month(),
+                date.day(),
                 channel_name,
             )
         });
@@ -92,11 +93,11 @@ impl Engine {
         );
 
         let github = Octocrab::builder().personal_token(token).build()?;
-        let min_date = NaiveDateTime::from(args.date.pred_opt().unwrap()).and_utc();
+        let min_date = NaiveDateTime::from(date.pred_opt().unwrap()).and_utc();
         let message_template = format!(
             "This was discussed during the [{} meeting on {}](%URL%).",
             args.channel,
-            args.date.format("%d %B %Y"),
+            date.format("%d %B %Y"),
         );
 
         let governor = RateLimiter::direct(
@@ -296,7 +297,7 @@ fn find_closest_hn_id(e: ElementRef, content: bool) -> Option<DocFragment> {
 
 /// If this element is a fragment boundary (i.e. a hn with and id),
 /// return its id and itself, otherwise, return None.
-fn try_as_fragment_boundary(e: ElementRef) -> Option<(&str, ElementRef)> {
+fn try_as_fragment_boundary(e: ElementRef<'_>) -> Option<(&str, ElementRef<'_>)> {
     static RE_HN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[hH][1234]$").unwrap());
     let v = e.value();
     if !RE_HN.is_match(v.name()) {
@@ -367,4 +368,8 @@ impl<'a> DocFragment<'a> {
             content: "".into(),
         }
     }
+}
+
+fn today() -> chrono::NaiveDate {
+    chrono::offset::Local::now().date_naive()
 }
