@@ -42,7 +42,18 @@ impl Engine {
         } else {
             &args.channel
         };
-        let date = args.date.unwrap_or_else(today);
+        let date = args.date.unwrap_or_else(||
+            // infer date from URL if any, otherwise from current date
+            args.url.as_ref()
+                .and_then(|url| DATE_RE.captures(url))
+                .and_then(|c| {
+                    let y = c.get(1).unwrap().as_str().parse().ok()?;
+                    let m = c.get(2).unwrap().as_str().parse().ok()?;
+                    let d = c.get(3).unwrap().as_str().parse().ok()?;
+                    chrono::NaiveDate::from_ymd_opt(y, m, d)
+                })
+                .unwrap_or_else(today));
+        log::debug!("Date: {date:?}");
         let url = args.url.unwrap_or_else(|| {
             format!(
                 "https://www.w3.org/{}/{:02}/{:02}-{}-minutes.html",
@@ -373,3 +384,7 @@ impl<'a> DocFragment<'a> {
 fn today() -> chrono::NaiveDate {
     chrono::offset::Local::now().date_naive()
 }
+
+static DATE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"[^0-9]([0-9]{4})[\/-]([0-9]{2})[\/-]([0-9]{2})(?:$|[^0-9])").unwrap()
+});
