@@ -79,8 +79,9 @@ impl Engine {
         };
         let dom = Html::parse_document(&html);
 
-        let repos_urls: Vec<String> = args.groups
-            .unwrap_or_else(|| format!("wg/{channel_name}"))
+        let groups = args.groups.unwrap_or_else(|| format!("wg/{channel_name}"));
+
+        let repos_urls: Vec<String> = groups
             .split(",")
             .map(|g| format!("https://raw.githubusercontent.com/w3c/groups/refs/heads/main/{g}/repositories.json"))
             .collect();
@@ -106,8 +107,8 @@ impl Engine {
         let github = Octocrab::builder().personal_token(token).build()?;
         let min_date = NaiveDateTime::from(date.pred_opt().unwrap()).and_utc();
         let message_template = format!(
-            "This was discussed during the [{} meeting on {}](%URL%).",
-            args.channel,
+            "This was discussed during the [meeting of {} on {}](%URL%).",
+            groups,
             date.format("%d %B %Y"),
         );
 
